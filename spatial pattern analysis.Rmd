@@ -1,0 +1,73 @@
+
+长期生物多样性数据分析实例
+========================================================
+沈国春  2013年7月
+
+```{r}
+library(vegan)
+```
+## 步骤1：导入和图形化数据：
+```{r}
+#读取csv文件中的数据
+spdata=read.csv("spatial data.csv",header=TRUE)
+
+#查看文件结构
+str(spdata)
+
+```
+
+## 步骤2：计算生物多样性指数，查看生物多样性空间分布情况
+```{r message=FALSE}
+#计算alpha多样性
+richness=apply(spdata[,1:12],1,function(x) sum(x!=0))
+plot(x=spdata$x,y=spdata$y,col=as.factor(richness),xlab="x",ylab="y",pch=15,cex=4)
+
+#计算beta多样性
+
+#先来查看一下有多少beta多样性的定义可以计算
+betadiver(help=TRUE)
+betadiv=betadiver(spdata[,1:12],method="w")
+
+#计算样方间的空间距离也就非常简单
+plotdist=dist(spdata[,c(15:16)])
+
+#查看样方间beta多样性与样方间空间距离的关系
+plot(x=plotdist,y=betadiv,ylab="Beta diversity",xlab="Spatial distances among plots")
+```
+
+
+## 步骤3：统计检验beta多样性是否会随着空间距离增加而减弱
+```{r}
+#采用最简单的线性回归
+summary(lm(betadiv~plotdist))
+
+#或者采用Mantel检验，已防止beta多样性的空间自相关对分析带来的干扰
+mantel(betadiv,plotdist)
+```
+
+## 步骤4：分析环境的变化是否影响了群落间多样性的变化
+```{r}
+#可以进行canonical correspondence analysis (CCA)
+re_cca=cca(spdata[1:12],spdata[13:14])
+plot(re_cca)
+```
+
+## 步骤5：分解环境因数和其他空间因数（如扩散限制）对群落多样性的影响
+```{r}
+#如可进行Principal Coordinates of Neighborhood Analysis (PCNM)
+pcnm1=pcnm(plotdist)
+
+#查看PCNM分解结果
+ordisurf(spdata[,15:16],scores(pcnm1,choi=2),bubble=4)
+
+#将PCNM分解结果加入到RDA分析中
+rda_data=cbind(richness,spdata[13:14],scores(pcnm1))
+mm=model.matrix(richness~PCNM1+PCNM2,data=rda_data)
+pcnm_rda=rda(mm)
+re_vp=varpart(richness,~Temprature,~Precipitation,~PCNM1,~PCNM2,data=rda_data)
+plot(re_vp)
+re_vp
+showvarparts(4)
+```
+
+

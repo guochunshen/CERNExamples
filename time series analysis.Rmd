@@ -1,0 +1,75 @@
+
+长期生物多样性数据分析实例
+========================================================
+沈国春  2013年7月
+
+
+## 步骤1：导入数据.
+```{r}
+#采用read.csv可以方便的导入csv格式数据，当然也可以用其它命令导入Excel数据
+tdata=read.csv("time serise data.csv",header=TRUE)
+
+#查看数据结构
+head(tdata)
+str(tdata)
+
+#分离群落数据和环境数据
+com=tdata[,c(2:13)]
+env=tdata[,c(14:15)]
+year=tdata[,1]
+
+head(com)
+head(env)
+```
+
+## 步骤2：计算生物多样性指数
+```{r}
+
+## 物种丰富度
+richness=apply(tdata[,c(2:13)],1,function(x) sum(x!=0))
+plot(x=year,y=richness,type="o",xlab="Years",ylab="Species Richness")
+
+```
+
+当然，我们还可以充分利用__每个物种的多度信息__计算其他多样性指数，如Shannon Weaver和Simpson多样性指数。
+```{r message=FALSE}
+library(vegan)
+
+#计算Shannon Weaver多样性指数
+shannon=diversity(com,index="shannon")
+plot(x=year,y=shannon,type="o",xlab="Years",ylab="Shannon-Weaver diversity index")
+
+
+#计算Simpson指数
+simpson=diversity(com,index="simpson")
+plot(x=year,y=simpson,type="o",xlab="Years",ylab="Simpson diversity index")
+
+```
+
+
+## 步骤3： 分析物种多样性的时间格局特征--时间序列分析
+```{r}
+
+#问题一：物种多样性时间前后的上是否存在自相关? 有无会影响到后续的时间序列分析
+par(mfrow=c(2,2))
+plot(x=richness[-1],y=richness[-length(richness)],xlab="richness",ylab="richness",main="example1")
+plot(x=lh[-1],y=lh[-length(lh)],xlab="richness",ylab="richness",main="example2")
+acf(ts(richness),main="example1",ylab="Autocorrelation")
+acf(lh,main="example2",ylab="Autocorrelation")
+```
+
+## 步骤4：分析多样性变化与环境变化的关系
+```{r}
+#如果在不考虑时间自相关对统计分析干扰的情况下，我们可以直接采用线性回归方式探索生物多样性与环境变化的相关性
+env_rch=lm(richness~env$Temprature+env$Precipitation)
+env_rch
+#并且可以马上做模型的检验
+summary(env_rch)
+```
+
+当然，我们也可以很方便的考虑时间自相关，采用时间自相关回归模型，使得我们的分析更加合理
+```{r}
+env=env[-1,]
+env_rch2=lm(richness[-1]~env$Temprature+env$Precipitation+richness[-length(richness)])
+summary(env_rch2)
+```
